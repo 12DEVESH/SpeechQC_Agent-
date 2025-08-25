@@ -1,0 +1,428 @@
+[
+  {
+    "name": "corruption_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Performs audio file corruption detection for speech datasets. This agent validates the audio directory path from PipelineState['audio_dir'], then constructs and sends a prompt to an LLM to generate and execute Python code via python_repl tool. The generated script iterates through audio files, checks file sizes using os.path.getsize(), marks 0KB files and .mp3 format files as 'corrupt', creates 'corruption_check.csv' with Filename/Status columns, and saves results. Updates PipelineState['corruption_output'] with 'Success' if all files are valid, 'Invalid' otherwise.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field containing path to audio directory"
+    },
+    "output_spec": "PipelineState dictionary with updated 'corruption_output' field",
+    "python_dependencies": [
+      "agent",
+      "logging",
+      "os"
+    ],
+    "tool_dependencies": [
+      "python_repl"
+    ]
+  },
+  {
+    "name": "extension_agent",
+    "category": "Agent",
+    "type": "function", 
+    "description": "Validates audio file extensions in speech datasets. This agent validates the audio directory path from PipelineState['audio_dir'], then constructs and sends a prompt to an LLM to generate and execute Python code via python_repl tool. The generated script checks that each file has valid .wav extension (case insensitive), creates 'audio_format_check.csv' with Filename/Valid_Extension columns, and saves results. Updates PipelineState['extension_output'] with 'Success' if all files have valid extensions, 'Invalid' otherwise.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field containing path to audio directory"
+    },
+    "output_spec": "PipelineState dictionary with updated 'extension_output' field",
+    "python_dependencies": [
+      "agent",
+      "logging",
+      "os"
+    ],
+    "tool_dependencies": [
+      "python_repl"
+    ]
+  },
+  {
+    "name": "sample_rate_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Checks audio sample rates for speech dataset quality control. This agent validates the audio directory path from PipelineState['audio_dir'], then constructs and sends a prompt to an LLM to generate and execute Python code via python_repl tool. The generated script uses librosa/soundfile/wave libraries to check each audio file's sample rate, creates 'sample_rate_check.csv' with Filename/Sample_Rate/Status columns (Pass for 16000 Hz, Fail otherwise), and saves results. Updates PipelineState['sample_rate_output'] with 'Success' if all files pass, 'Invalid' otherwise.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field containing path to audio directory"
+    },
+    "output_spec": "PipelineState dictionary with updated 'sample_rate_output' field",
+    "python_dependencies": [
+      "agent",
+      "logging"
+    ],
+    "tool_dependencies": [
+      "python_repl"
+    ]
+  },
+  {
+    "name": "transcription_func",
+    "category": "Agent",
+    "type": "function",
+    "description": "Performs ASR transcription on speech dataset audio files. This agent validates the audio directory path from PipelineState['audio_dir'], then directly calls the transcribe_folder_to_csv utility function with Hindi as source language. The utility function processes all audio files in the directory and generates transcriptions using ASR models. Updates PipelineState['transc_csv'] with the transcription result path/status (note: also referenced as PipelineState['A'] in some dependent agents).",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field containing path to audio directory"
+    },
+    "output_spec": "PipelineState dictionary with updated 'transc_csv' field containing transcription results",
+    "python_dependencies": [
+      "logging",
+      "os"
+    ],
+    "tool_dependencies": [
+      "transcribe_folder_to_csv"
+    ]
+  },
+  {
+    "name": "silence_vad_func",
+    "category": "Agent",
+    "type": "function",
+    "description": "Performs Voice Activity Detection (VAD) to identify silence in speech dataset audio files. This agent validates the audio directory path from PipelineState['audio_dir'], then directly calls the process_folder_vad utility function. The utility function analyzes audio files to detect speech vs silence segments and generates VAD statistics. Updates PipelineState['D'] with the VAD processing result.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field containing path to audio directory"
+    },
+    "output_spec": "PipelineState dictionary with updated 'D' field containing VAD results",
+    "python_dependencies": [
+      "logging",
+      "os"
+    ],
+    "tool_dependencies": [
+      "process_folder_vad"
+    ]
+  },
+  {
+    "name": "num_speaker_func",
+    "category": "Agent",
+    "type": "function",
+    "description": "Performs speaker diarization and duration calculation on speech dataset audio files. This agent validates the audio directory path from PipelineState['audio_dir'], then directly calls the save_num_speakers utility function. The utility function analyzes audio files to identify number of speakers and calculate speaking durations for each speaker, generating speaker statistics. Updates PipelineState['E'] with the speaker diarization results.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field containing path to audio directory"
+    },
+    "output_spec": "PipelineState dictionary with updated 'E' field containing speaker analysis results",
+    "python_dependencies": [
+      "logging",
+      "os"
+    ],
+    "tool_dependencies": [
+      "save_num_speakers"
+    ]
+  },
+  {
+    "name": "vocab_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Extracts vocabulary lists from speech dataset transcriptions. This agent validates CSV path from PipelineState['A'] (transcription results) or uses default path, then constructs and sends a prompt to an LLM to generate and execute Python code via python_repl tool. The generated script loads the CSV, finds the 'Transcription'/'Ground_Truth' column (case-insensitive), extracts unique words from each transcription into a 'vocab_list' column, and saves as 'vocab_list.csv'. Updates PipelineState['vocab_output'] with the output CSV path or error message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field and optionally 'A' field (transcription CSV path)"
+    },
+    "output_spec": "PipelineState dictionary with updated 'vocab_output' field",
+    "python_dependencies": [
+      "agent",
+      "logging",
+      "os"
+    ],
+    "tool_dependencies": [
+      "python_repl"
+    ]
+  },
+  {
+    "name": "character_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Extracts character lists from speech dataset transcriptions. This agent validates CSV path from PipelineState['A'] (transcription results) or uses default path, then constructs and sends a prompt to an LLM to generate and execute Python code via python_repl tool. The generated script loads the CSV, finds the 'Transcription'/'Ground_Truth' column (case-insensitive), extracts unique characters from each transcription into a 'character_list' column, and saves as 'character_list.csv'. Updates PipelineState['character_output'] with the output CSV path or error message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field and optionally 'A' field (transcription CSV path)"
+    },
+    "output_spec": "PipelineState dictionary with updated 'character_output' field",
+    "python_dependencies": [
+      "agent",
+      "logging",
+      "os"
+    ],
+    "tool_dependencies": [
+      "python_repl"
+    ]
+  },
+  {
+    "name": "audio_length_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Calculates duration of audio files in speech datasets. This agent validates the audio directory path from PipelineState['audio_dir'], then constructs and sends a prompt to an LLM to generate and execute Python code via python_repl tool. The generated script iterates through audio files, calculates duration in seconds for each file, creates 'audio_length.csv' with Filename/Audio_length columns, and saves results. Updates PipelineState['audio_length_output'] with the processing result or error message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field containing path to audio directory"
+    },
+    "output_spec": "PipelineState dictionary with updated 'audio_length_output' field",
+    "python_dependencies": [
+      "agent",
+      "logging",
+      "os"
+    ],
+    "tool_dependencies": [
+      "python_repl"
+    ]
+  },
+  {
+    "name": "language_verification_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Verifies if speech dataset transcriptions are in Devanagari script (Hindi/Sanskrit). This agent validates CSV path from PipelineState['A'] (transcription results) or uses default path, then constructs and sends a detailed prompt to an LLM to generate and execute Python code via python_repl tool. The generated script loads the CSV, finds the 'ground_truth' column (case-insensitive), checks if characters fall within Unicode range U+0900 to U+097F, adds 'Is_Devanagari' boolean column, and saves as 'language_verification.csv'. Updates PipelineState['language_verification_output'] with the output CSV path or error message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field and optionally 'A' field (transcription CSV path)"
+    },
+    "output_spec": "PipelineState dictionary with updated 'language_verification_output' field",
+    "python_dependencies": [
+      "agent",
+      "logging",
+      "os"
+    ],
+    "tool_dependencies": [
+      "python_repl"
+    ]
+  },
+  {
+    "name": "ctc_score_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Calculates CTC scores for speech dataset using forced alignment. This agent validates audio directory from PipelineState['audio_dir'] and CSV path from PipelineState['A'] (transcription results) or uses default path, then directly calls the process_audio_directory utility function to perform forced alignment and CTC scoring. Processes the results using pandas to group by filename, aggregate aligned segments, calculate average CTC scores, and categorize as Good/Medium/Poor. Creates 'ctc_scores.csv' with Filename/Aligned_Segments/Aligned_Transcript/CTC_Score/CTC_Status columns. Updates PipelineState['ctc_score_output'] with the output CSV path or error message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field and optionally 'A' field (transcription CSV path)"
+    },
+    "output_spec": "PipelineState dictionary with updated 'ctc_score_output' field",
+    "python_dependencies": [
+      "logging",
+      "os",
+      "pandas",
+      "json"
+    ],
+    "tool_dependencies": [
+      "process_audio_directory"
+    ]
+  },
+  {
+    "name": "transcript_quality_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Assesses transcript quality in speech datasets using utility function. This agent validates CSV path from PipelineState['A'] (transcription results) or uses default path, then constructs and sends a prompt to an LLM to generate and execute Python code via python_repl tool. The generated script loads the CSV, applies the transcript_quality function from utility_functions to each transcript, adds 'Quality_Check' column with results, and saves as 'transcript_quality.csv'. Updates PipelineState['transcript_quality_output'] with the processing result or error message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field and optionally 'A' field (transcription CSV path)"
+    },
+    "output_spec": "PipelineState dictionary with updated 'transcript_quality_output' field",
+    "python_dependencies": [
+      "agent",
+      "logging",
+      "os"
+    ],
+    "tool_dependencies": [
+      "python_repl",
+      "transcript_quality"
+    ]
+  },
+  {
+    "name": "upsampling_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Checks for audio upsampling artifacts in speech datasets. This agent validates the audio directory path from PipelineState['audio_dir'], then directly calls the check_upsampling_folder utility function. The utility function analyzes audio files to detect signs of upsampling (artificially increased sample rates) and generates upsampling detection results. Updates PipelineState['upsampling_output'] with the upsampling check result.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field containing path to audio directory"
+    },
+    "output_spec": "PipelineState dictionary with updated 'upsampling_output' field",
+    "python_dependencies": [
+      "logging",
+      "os"
+    ],
+    "tool_dependencies": [
+      "check_upsampling_folder"
+    ]
+  },
+  {
+    "name": "valid_speaker_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Determines if speakers in speech dataset are new or previously seen. This agent validates audio directory path from PipelineState['audio_dir'], then constructs and sends a prompt to an LLM to generate and execute Python code via python_repl tool. The generated script loads 'num_speakers.csv', parses 'Number of Speakers' and 'Speaker Durations' JSON data, tracks speaker appearances across files, determines if speakers are 'New' or 'Old' based on multi-file appearances, creates 'valid_speaker.csv' with Filename/Speaker_Status/Common_File columns, and saves results. Updates PipelineState['valid_speaker_output'] with the output CSV path or error message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field containing path to audio directory"
+    },
+    "output_spec": "PipelineState dictionary with updated 'valid_speaker_output' field",
+    "python_dependencies": [
+      "agent",
+      "logging",
+      "os"
+    ],
+    "tool_dependencies": [
+      "python_repl"
+    ]
+  },
+  {
+    "name": "domain_checker_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Identifies speech dataset domain using LLM analysis of transcriptions. This agent validates audio directory from PipelineState['audio_dir'] and checks for 'indicconf_hypothesis.csv', loads the CSV using pandas, iterates through 'Indiconformer_Hypothesis' column, constructs domain classification prompts for each transcript, sends prompts to LLM to classify domain (News/Call Center/Interview/Conversation/Education), collects domain predictions, adds 'domain' column to dataframe, and saves as 'domain_check.csv'. Updates PipelineState['domain_checker_output'] with the output CSV path or error message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field containing path to audio directory"
+    },
+    "output_spec": "PipelineState dictionary with updated 'domain_checker_output' field",
+    "python_dependencies": [
+      "logging",
+      "os",
+      "pandas"
+    ],
+    "tool_dependencies": [
+      "llm"
+    ]
+  },
+  {
+    "name": "audio_transcript_matching_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Performs forced alignment between audio files and transcriptions in speech datasets. This agent validates audio directory from PipelineState['audio_dir'] and CSV path from PipelineState['A'] (transcription results) or uses default path, then constructs and sends a prompt to an LLM to generate and execute Python code via python_repl tool. The generated script loads the CSV, uses force_alignment_and_ctc_score function from utility_functions to align audio with transcriptions, creates aligned transcripts by joining tokens from aligned_segments (excluding special tokens), creates 'audio_transcript_matching.csv' with Filename/Aligned_Segments/Aligned_Transcript columns, and saves results. Updates PipelineState['audio_transcript_matching_output'] with the output CSV path or error message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field and optionally 'A' field (transcription CSV path)"
+    },
+    "output_spec": "PipelineState dictionary with updated 'audio_transcript_matching_output' field",
+    "python_dependencies": [
+      "agent",
+      "logging",
+      "os"
+    ],
+    "tool_dependencies": [
+      "python_repl",
+      "force_alignment_and_ctc_score"
+    ]
+  },
+  {
+    "name": "language_identification_indiclid_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Identifies languages in speech dataset transcriptions using IndicLID. This agent validates audio directory from PipelineState['audio_dir'] and checks for existing output, loads transcription CSV from PipelineState['A'] (transcription results) or uses default path, validates 'Indiconformer_Hypothesis' column presence, iterates through transcriptions, directly calls language_identification_indiclid utility function for each transcription, collects language identification results with confidence scores, creates output dataframe with Filename/Transcription/Language_Code/Confidence/Model_Used columns, saves as 'indiclid_language_identification.csv', and handles empty/error cases. Updates PipelineState['language_identification_indiclid_output'] with the output CSV path or error message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field and optionally 'A' field (transcription CSV path)"
+    },
+    "output_spec": "PipelineState dictionary with updated 'language_identification_indiclid_output' field",
+    "python_dependencies": [
+      "logging",
+      "os",
+      "pandas"
+    ],
+    "tool_dependencies": [
+      "language_identification_indiclid"
+    ]
+  },
+  {
+    "name": "normalization_remove_tags_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Cleans and normalizes speech dataset transcriptions by removing HTML tags and symbols. This agent validates audio directory from PipelineState['audio_dir'] and looks for 'indicconf_hypothesis-gt.csv', checks if 'normalized_list.csv' already exists, then constructs and sends a prompt to an LLM to generate and execute Python code via python_repl tool. The generated script loads the CSV, finds the transcription column (case-insensitive), removes HTML tags, square bracket content, and symbols like ['#','$','%'], adds cleaned text to 'normalized_transcripts' column, and saves as 'normalized_list.csv'. Updates PipelineState['normalization_remove_tags_output'] with the output CSV path or error message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field containing path to audio directory"
+    },
+    "output_spec": "PipelineState dictionary with updated 'normalization_remove_tags_output' field",
+    "python_dependencies": [
+      "agent",
+      "logging",
+      "os"
+    ],
+    "tool_dependencies": [
+      "python_repl"
+    ]
+  },
+  {
+    "name": "llm_score_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Evaluates transcript coherence and fluency using LLM-as-a-Judge for speech datasets. This agent validates audio directory from PipelineState['audio_dir'] and looks for 'indicconf_hypothesis.csv', then constructs and sends a detailed prompt to an LLM to generate and execute Python code via python_repl tool. The generated script loads the CSV, finds the transcription column, sends each transcription to LLM for coherence/fluency evaluation (0-10 scale with strict Hindi assessment), collects LLM scores and evaluation comments, creates 'llm_scores.csv' with Filename/Transcription/LLM_Score/Evaluation_Comment columns, and saves results. Updates PipelineState['llm_score_output'] with the output CSV path or error message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field containing path to audio directory"
+    },
+    "output_spec": "PipelineState dictionary with updated 'llm_score_output' field",
+    "python_dependencies": [
+      "agent",
+      "logging",
+      "os"
+    ],
+    "tool_dependencies": [
+      "python_repl",
+      "llm"
+    ]
+  },
+  {
+    "name": "transliteration_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Converts Roman script text to native script using transliteration for speech datasets. This agent validates ground truth CSV path from PipelineState['ground_truth_csv'] and language code from PipelineState['lang_code'], then directly calls the transliterate_file utility function with the CSV path and language code. The utility function performs transliteration conversion from Roman script to the specified native script. Updates PipelineState['transliteration_output'] with the transliteration result or error message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'ground_truth_csv' and 'lang_code' fields"
+    },
+    "output_spec": "PipelineState dictionary with updated 'transliteration_output' field",
+    "python_dependencies": [
+      "logging",
+      "os"
+    ],
+    "tool_dependencies": [
+      "transliterate_file"
+    ]
+  },
+  {
+    "name": "speaker_duration_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Calculates total speaking durations per speaker across speech dataset. This agent validates audio directory from PipelineState['audio_dir'] and checks for 'num_speakers.csv', loads the CSV using pandas, validates required columns (File Name/Number of Speakers/Speaker Durations), parses JSON speaker duration data from each row, aggregates total duration per speaker across all files, creates results with Speaker/Total_Duration_Hours columns, saves as 'speaker_durations.csv', and handles JSON parsing errors gracefully. Updates PipelineState['speaker_duration_output'] with the output CSV path or error message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field containing path to audio directory"
+    },
+    "output_spec": "PipelineState dictionary with updated 'speaker_duration_output' field",
+    "python_dependencies": [
+      "logging",
+      "os",
+      "pandas",
+      "json"
+    ],
+    "tool_dependencies": []
+  },
+  {
+    "name": "english_word_count_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Counts English words in speech dataset transcriptions using LLM analysis. This agent validates audio directory from PipelineState['audio_dir'] and checks for 'normalized_list.csv', loads the CSV using pandas, validates 'ground_truth' column presence, iterates through transcriptions, constructs word counting prompts for LLM to count English words (case-insensitive), sends prompts to LLM and parses integer responses, adds 'english_word_count' column to dataframe, saves as 'english_word_count.csv', and handles LLM parsing errors by setting -1. Updates PipelineState['english_word_count_output'] with the output CSV path or error message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field containing path to audio directory"
+    },
+    "output_spec": "PipelineState dictionary with updated 'english_word_count_output' field",
+    "python_dependencies": [
+      "logging",
+      "os",
+      "pandas"
+    ],
+    "tool_dependencies": [
+      "llm"
+    ]
+  },
+  {
+    "name": "utterance_duplicate_checker_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Identifies duplicate utterances across speech dataset transcription columns. This agent validates audio directory from PipelineState['audio_dir'] and checks for 'normalized_list.csv', loads the CSV using pandas, iterates through object-type columns to find duplicates using pandas duplicated() method, counts occurrences of each duplicate utterance, creates results dataframe with column_name/utterance/count columns if duplicates found, saves as 'duplicate_utterances.csv', or reports no duplicates found. Updates PipelineState['utterance_duplicate_checker_output'] with the output CSV path or no duplicates message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field containing path to audio directory"
+    },
+    "output_spec": "PipelineState dictionary with updated 'utterance_duplicate_checker_output' field",
+    "python_dependencies": [
+      "logging",
+      "os",
+      "pandas"
+    ],
+    "tool_dependencies": []
+  },
+  {
+    "name": "wer_computation_agent",
+    "category": "Agent",
+    "type": "function",
+    "description": "Computes Word Error Rate (WER) between reference and hypothesis transcriptions for speech dataset evaluation. This agent validates audio directory from PipelineState['audio_dir'] and checks for both 'normalized_list.csv' (reference) and 'indicconf_hypothesis.csv' (hypothesis), loads both CSVs using pandas, validates equal row counts, extracts 'normalized_transcripts' and 'Indiconformer_Hypothesis' columns, calculates WER for each pair using jiwer.wer() function, creates results with Reference/Hypothesis/WER columns, saves as 'wer.csv', and handles WER calculation errors by marking as 'Error'. Updates PipelineState['wer_computation_agent_output'] with the output CSV path or error message.",
+    "input_spec": {
+      "state": "PipelineState dictionary - reads from 'audio_dir' field containing path to audio directory"
+    },
+    "output_spec": "PipelineState dictionary with updated 'wer_computation_agent_output' field",
+    "python_dependencies": [
+      "logging",
+      "os",
+      "pandas",
+      "jiwer"
+    ],
+    "tool_dependencies": []
+  }
+]

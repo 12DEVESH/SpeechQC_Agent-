@@ -1,0 +1,299 @@
+[
+  {
+    "name": "language_identification_indiclid",
+    "category": "Language Processing",
+    "type": "function",
+    "description": "Identifies the language of given transcription text using IndicLID (Indian Language Identification) models. Supports multiple Indian languages in both Roman and native scripts. Returns language code, confidence score, and model used for identification.",
+    "input_spec": {
+      "transcription": "string - Text to identify language for"
+    },
+    "output_spec": {
+      "type": "List[Tuple[str, str, float, str]]",
+      "description": "List of tuples containing (original_text, language_code, confidence_score, model_used)"
+    },
+    "python_dependencies": [
+      "torch",
+      "transformers",
+      "fasttext",
+      "pandas",
+      "logging",
+      "re",
+      "os"
+    ],
+    "tool_dependencies": [],
+    "error_handling": "Returns (transcription, 'Error', 0.0, 'IndicLID') on failure"
+  },
+  {
+    "name": "transliterate_file",
+    "category": "Text Processing",
+    "type": "function",
+    "description": "Transliterates text from Roman script to native script for supported Indian languages. Processes a CSV file containing 'ground_truth' column and adds transliterated output.",
+    "input_spec": {
+      "file_path": "string - Path to input CSV file containing 'ground_truth' column",
+      "lang_code": "string - Language code (supported: bn, gu, hi, kn, ml, mr, pa, sd, si, ta, te, ur)"
+    },
+    "output_spec": {
+      "type": "string",
+      "description": "Success message with output file path or error message"
+    },
+    "python_dependencies": [
+      "pandas",
+      "ai4bharat.transliteration",
+      "numpy",
+      "os"
+    ],
+    "tool_dependencies": [],
+    "error_handling": "Returns error message if file not found or unsupported language"
+  },
+  {
+    "name": "transcribe_audio",
+    "category": "Speech Processing",
+    "type": "function",
+    "description": "Transcribes audio file to text using language-specific Wav2Vec2 models from AI4Bharat. Supports Hindi, Tamil, Sanskrit, Marathi, and Telugu languages.",
+    "input_spec": {
+      "audio_path": "string - Path to audio file (WAV format recommended)",
+      "source_lang": "string - Source language (Hindi, Tamil, Sanskrit, Marathi, Telugu)"
+    },
+    "output_spec": {
+      "type": "string",
+      "description": "Transcribed text from the audio file"
+    },
+    "python_dependencies": [
+      "torch",
+      "librosa",
+      "transformers",
+      "logging"
+    ],
+    "tool_dependencies": [],
+    "error_handling": "Raises ValueError for unsupported languages"
+  },
+  {
+    "name": "transcribe_folder_to_csv",
+    "category": "Batch Processing",
+    "type": "function",
+    "description": "Batch transcribes all audio files in a folder and saves results to CSV. Supports MP3 to WAV conversion. Creates 'indicconf_hypothesis.csv' with transcription results.",
+    "input_spec": {
+      "folder_path": "string - Path to folder containing audio files",
+      "source_language": "string - Language for transcription (Hindi, Tamil, Sanskrit, Marathi, Telugu)"
+    },
+    "output_spec": {
+      "type": "string",
+      "description": "Path to output CSV file or error message"
+    },
+    "python_dependencies": [
+      "os",
+      "pandas",
+      "logging",
+      "pydub"
+    ],
+    "tool_dependencies": [
+      "transcribe_audio"
+    ],
+    "error_handling": "Skips files with errors and logs warnings"
+  },
+  {
+    "name": "perform_vad",
+    "category": "Audio Analysis",
+    "type": "function",
+    "description": "Performs Voice Activity Detection (VAD) on audio file using pyannote.audio segmentation model. Identifies speech segments in audio.",
+    "input_spec": {
+      "audio_file": "string - Path to audio file"
+    },
+    "output_spec": {
+      "type": "pyannote.core.Annotation",
+      "description": "VAD results with speech segment timestamps"
+    },
+    "python_dependencies": [
+      "pyannote.audio"
+    ],
+    "tool_dependencies": [],
+    "error_handling": "Returns empty annotation on processing errors"
+  },
+  {
+    "name": "get_total_silence_time",
+    "category": "Audio Analysis",
+    "type": "function",
+    "description": "Calculates total silence duration in an audio file by analyzing VAD results. Measures gaps between speech segments and silence at beginning/end.",
+    "input_spec": {
+      "audio_file_path": "string - Path to audio file"
+    },
+    "output_spec": {
+      "type": "float",
+      "description": "Total silence duration in seconds"
+    },
+    "python_dependencies": [
+      "librosa"
+    ],
+    "tool_dependencies": [
+      "perform_vad"
+    ],
+    "error_handling": "May return 0.0 on processing errors"
+  },
+  {
+    "name": "process_folder_vad",
+    "category": "Batch Processing",
+    "type": "function",
+    "description": "Processes all audio files in a folder for silence analysis using VAD. Creates 'vad_silence_stats.csv' with silence statistics for each file.",
+    "input_spec": {
+      "audio_folder": "string - Path to folder containing audio files"
+    },
+    "output_spec": {
+      "type": "string",
+      "description": "Success message with CSV file path"
+    },
+    "python_dependencies": [
+      "os",
+      "pandas",
+      "logging"
+    ],
+    "tool_dependencies": [
+      "get_total_silence_time"
+    ],
+    "error_handling": "Continues processing other files if individual files fail"
+  },
+  {
+    "name": "save_num_speakers",
+    "category": "Speaker Analysis",
+    "type": "function",
+    "description": "Performs speaker diarization to count unique speakers and their speaking durations. Uses pyannote speaker-diarization-3.1 model and saves results to 'num_speakers.csv'.",
+    "input_spec": {
+      "folder_path": "string - Path to folder containing audio files",
+      "model_token": "string - Authentication token for pyannote model (optional, defaults to empty)"
+    },
+    "output_spec": {
+      "type": "string",
+      "description": "Path to output CSV file or error message"
+    },
+    "python_dependencies": [
+      "torch",
+      "pyannote.audio",
+      "csv",
+      "json",
+      "os"
+    ],
+    "tool_dependencies": [],
+    "error_handling": "Writes error status to CSV for failed files"
+  },
+  {
+    "name": "transcript_quality",
+    "category": "Quality Assessment",
+    "type": "function",
+    "description": "Evaluates transcript quality based on word repetition and length. Returns 'passed' if transcript has sufficient unique words (>70% unique) and length (>3 words).",
+    "input_spec": {
+      "transcript": "string - Transcript text to evaluate"
+    },
+    "output_spec": {
+      "type": "string",
+      "description": "'passed' or 'failed' based on quality criteria"
+    },
+    "python_dependencies": [],
+    "tool_dependencies": [],
+    "error_handling": "Returns 'failed' for empty or poor quality transcripts"
+  },
+  {
+    "name": "force_alignment_and_ctc_score",
+    "category": "Alignment Analysis",
+    "type": "function",
+    "description": "Performs forced alignment between audio and transcript using CTC-based models. Returns word-level timestamps and average CTC confidence scores for alignment quality assessment.",
+    "input_spec": {
+      "speech_file": "string - Path to audio file",
+      "given_transcript": "string - Reference transcript text",
+      "model_name": "string - Wav2Vec2 model name (defaults to Hindi model)"
+    },
+    "output_spec": {
+      "type": "Tuple[List[List[str]], float]",
+      "description": "Tuple of (aligned_segments, average_ctc_score) where segments contain [word, start_time, end_time, confidence]"
+    },
+    "python_dependencies": [
+      "torch",
+      "librosa",
+      "transformers",
+      "dataclasses",
+      "logging"
+    ],
+    "tool_dependencies": [],
+    "error_handling": "Returns ([], 0) on alignment failures"
+  },
+  {
+    "name": "process_audio_directory",
+    "category": "Batch Processing",
+    "type": "function",
+    "description": "Processes multiple audio files for forced alignment using ground truth transcripts from CSV. Generates detailed alignment results with word-level timing and confidence scores.",
+    "input_spec": {
+      "audio_dir": "string - Path to directory containing audio files",
+      "transcript_csv": "string - Path to CSV file with 'filename' and 'ground_truth' columns",
+      "output_csv_path": "string - Path for output CSV file (optional)"
+    },
+    "output_spec": {
+      "type": "List[Dict[str, str]]",
+      "description": "List of alignment results with filename, label, start_time, end_time, score, average_ctc_score"
+    },
+    "python_dependencies": [
+      "pandas",
+      "os",
+      "csv",
+      "logging"
+    ],
+    "tool_dependencies": [
+      "force_alignment_and_ctc_score"
+    ],
+    "error_handling": "Adds error entries for missing files or failed alignments"
+  },
+  {
+    "name": "is_upsampled_from_8k_v2",
+    "category": "Audio Quality Analysis",
+    "type": "function",
+    "description": "Detects if audio has been upsampled from 8kHz by analyzing frequency spectrum energy distribution. Low energy in 4-8kHz band indicates potential upsampling.",
+    "input_spec": {
+      "audio_path": "string - Path to audio file",
+      "threshold_ratio": "float - Energy ratio threshold for upsampling detection (default: 0.02)"
+    },
+    "output_spec": {
+      "type": "bool",
+      "description": "True if audio appears to be upsampled from 8kHz, False otherwise"
+    },
+    "python_dependencies": [
+      "torchaudio",
+      "numpy"
+    ],
+    "tool_dependencies": [],
+    "error_handling": "Returns False on audio loading errors"
+  },
+  {
+    "name": "check_upsampling_folder",
+    "category": "Batch Processing",
+    "type": "function",
+    "description": "Batch processes folder to detect upsampled audio files. Creates 'upsampling_check.csv' with upsampling detection results for each audio file.",
+    "input_spec": {
+      "folder_path": "string - Path to folder containing audio files"
+    },
+    "output_spec": {
+      "type": "string",
+      "description": "Success message with CSV file path"
+    },
+    "python_dependencies": [
+      "os",
+      "pandas"
+    ],
+    "tool_dependencies": [
+      "is_upsampled_from_8k_v2"
+    ],
+    "error_handling": "Marks individual files as 'Error' if processing fails"
+  },
+  {
+    "name": "get_required_inputs",
+    "category": "Utility",
+    "type": "function",
+    "description": "Returns the required input parameters for a given task ID. Maps task numbers to their corresponding input requirements (audio_dir, ground_truth_csv, lang_code).",
+    "input_spec": {
+      "task_id": "int - Task identifier number (1-24)"
+    },
+    "output_spec": {
+      "type": "List[str]",
+      "description": "List of required input parameter names for the specified task"
+    },
+    "python_dependencies": [],
+    "tool_dependencies": [],
+    "error_handling": "Returns empty list for unknown task IDs"
+  }
+]

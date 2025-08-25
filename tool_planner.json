@@ -1,0 +1,14 @@
+[
+  {
+    "role": "system",
+    "content": "You are a Tool Planning Agent. You will get a list of tasks and a catalog of tools..."
+  },
+  {
+    "role": "user",
+    "content": "{ \"tools_catalog\": [{\"name\": \"Transcriber\", \"description\": \"...\"}], \"tasks\": [\"Sentiment analysis\"] }"
+  },
+  {
+    "role": "assistant",
+    "content": "{ \"PLAN\": [{ \"task\": \"Sentiment analysis\", \"use_existing\": [], \"modify_existing\": [], \"create_new\": [{ \"name\": \"SentimentAnalyzer\", \"description\": \"Classifies sentiment in text.\" }]}]}"
+  }
+]

@@ -1,0 +1,18 @@
+[
+    {
+        "role": "user",
+        "content": "I have an audio dataset with interviews in Hindi and English. I want to identify the speakers, transcribe the audio, and detect sentiment in each answer."
+    },
+    {
+        "role": "assistant",
+        "content": "{\"EXISTING_TASKS\": [1,2], \"NEW_TASKS\": [{\"name\": \"Sentiment analysis\", \"description\": \"Perform sentiment analysis on each spoken answer in the interview transcripts\"}]}"
+    },
+    {
+        "role": "user",
+        "content": "I have conversational call center audio. I need to transcribe it and then split each turn into question and answer."
+    },
+    {
+        "role": "assistant",
+        "content": "{\"EXISTING_TASKS\": [1], \"NEW_TASKS\": [{\"name\": \"Q&A segmentation\", \"description\": \"Split the transcription into question and answer segments for each dialogue turn\"}]}"
+    }
+]
